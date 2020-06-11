@@ -99,18 +99,38 @@ class lib_normDist:
         # Calculate var_x|y
         self.var_x_given_y = (x_var* n_var)/(x_var+n_var)
 
-        # Calculate var_x|z
-        rep_mu_x_given_y_sq = (np.repeat(self.mu_x_given_y[:,np.newaxis], card_Z, axis = 1))**2
-        rep_mu_x_given_z_sq = ((np.repeat(self.mu_y_given_z[:,np.newaxis], card_Y, axis = 1)).transpose(1,0))**2
-        self.var_x_given_z = (self.var_x_given_y  + rep_mu_x_given_y_sq)-rep_mu_x_given_z_sq
 
-        # Calculate DKL
 
+
+        ################################ Forced Results########################################
+        # In order to compute continuous  var_(x|y) we actually should have a complete continuous representation of it
+        # but we will compute using the farmula given in stark for discrete variables to compute it and then make comparison
+        # Then we will compare the KL divergences. This will not change the end result but only the method of calculating variances
+
+
+        rep_mu_x_given_y = (np.repeat(self.mu_x_given_y[:,np.newaxis], card_Z, axis = 1))
+        rep_mu_x_given_z = ((np.repeat(self.mu_y_given_z[:,np.newaxis], card_Y, axis = 1)).transpose(1,0))
         rep_var_x_given_y = np.repeat(self.var_x_given_y, card_Y, axis=0)
         rep_var_x_given_y = np.repeat(rep_var_x_given_y[:,np.newaxis], card_Z, axis=1)
 
-        rep_var_x_given_z = np.repeat(self.var_x_given_z[:,np.newaxis], card_Z, axis = 1)
-        self.analytic_DKL = lib_cal_DKL_gauss(rep_var_x_given_y, self.var_x_given_z , rep_mu_x_given_y_sq, rep_mu_x_given_z_sq)
+        # Calculate discrete variances var_(x|y)
+        discrete_var_x_given_y = np.sum(p_y_given_z * rep_var_x_given_y, axis=0)
+        rep_car_x_given_y = (np.repeat(discrete_var_x_given_y[:,np.newaxis], card_Y, axis = 1)).transpose(1,0)
+
+        # calculate (mu_(x|y) - mu_(x|z))^2 * p(y|z)
+        temp = ((rep_mu_x_given_y -rep_mu_x_given_z)**2)*p_y_given_z
+        temp = np.sum(temp,axis=0)
+
+        #calculate var_(x|z)
+        self.var_x_given_z = discrete_var_x_given_y + temp
+
+
+
+        # Calculate DKL
+
+
+        rep_var_x_given_z = (np.repeat(self.var_x_given_z[:,np.newaxis], card_Y, axis = 1)).transpose(1,0)
+        self.analytic_DKL = lib_cal_DKL_gauss(rep_var_x_given_y, rep_var_x_given_z, rep_mu_x_given_y, rep_mu_x_given_z)
         
 
 
