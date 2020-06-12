@@ -1,9 +1,7 @@
 # Guide
 In order to run the Project. 
 
-ject interpreter. This is required as the project
-
----> Set pro contain system-specific settings.
+--->  Set project interpreter. This is required as the project contain system-specific settings.
 
 ---> Edit configuration. The source directory is main.py
 
