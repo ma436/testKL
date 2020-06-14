@@ -72,32 +72,37 @@ class lib_normDist:
         self.p_z = p_x_and_z.sum(axis=0)
 
         # Calculate p(x|z)
-        p_x_given_z = (np.repeat(self.p_z[:, np.newaxis], card_X, axis=1)).transpose(1,0)
-        self.p_x_given_z = np.nan_to_num((p_x_and_z / p_x_given_z), nan=0, posinf=0)
+        rep_p_z = (np.repeat(self.p_z[:, np.newaxis], card_X, axis=1)).transpose(1,0)
+        self.p_x_given_z = np.nan_to_num((p_x_and_z / rep_p_z), nan=0, posinf=0)
         self.p_x_given_z_mat = ((np.repeat(self.p_x_given_z[:,:, np.newaxis], card_Y, axis=2)).transpose(0,2,1))
 
         # Calculate DKL(P(X|Y)||P(X|Z)
         self.actualDKL = lib_cal_DKL_mat(self.p_x_given_y_mat,self.p_x_given_z_mat)
 
+        # Calculate DKL for verification with old farmula
+        self.actualDKL_verify = lib_KLD_long(self.p_x_given_y,self.p_x_given_z )
+
 
         # Now we verify that the analytical expression of DKL is approximately close to the true DKL calculated above
         # We use exact mean and variance so we are sure that the means and variances are not assumed but rather same as from our distributions
 
+
         #Calculate p(y|z) and mean(y|z)
         p_y_and_z = np.sum(self.p_xyz, axis =0)
         p_z_mat_y = (np.repeat(self.p_z[:,np.newaxis], card_Y, axis = 1)).transpose(1,0)
-        p_y_given_z = np.nan_to_num((p_y_and_z / p_z_mat_y), nan=0, posinf=0)
-        self.mu_y_given_z = lib_calc_mu_x_given_y(self.y_amps, p_y_given_z)
+        self.p_y_given_z = np.nan_to_num((p_y_and_z / p_z_mat_y), nan=0, posinf=0)
+        self.mu_y_given_z = lib_calc_mu_x_given_y(self.y_amps, self.p_y_given_z)
         
-        # Calculate mu_x|z
-        self.mu_x_given_Z = (self.SNR/(1+self.SNR))*self.mu_y_given_z + (mu_x/(1+self.SNR))
+        # Calculate mu_(x|z)
+        self.mu_x_given_z_gauss = (self.SNR/(1+self.SNR))*self.mu_y_given_z + (mu_x/(1+self.SNR))
+        self.mu_x_given_z = lib_calc_mu_x_given_y(self.x_amps, self.p_x_given_z)
 
-        # Calculate my_x|y
+        # Calculate mu_(x|y) gauss approximation
         # Since y is continuous mu_x|y is also a continuous variable. We will calculate means for only y_vec
-        self.mu_x_given_y = (self.SNR/(1+self.SNR))*self.y_amps + (mu_x/(1+self.SNR))
+        self.mu_x_given_y_gauss = (self.SNR/(1+self.SNR))*self.y_amps + (mu_x/(1+self.SNR))
 
-        # Calculate var_x|y
-        self.var_x_given_y = (x_var* n_var)/(x_var+n_var)
+        # Calculate var_(x|y) gauss appriximation
+        self.var_x_given_y_gauss = (x_var* n_var)/(x_var+n_var)
 
 
 
@@ -107,34 +112,22 @@ class lib_normDist:
         # but we will compute using the farmula given in stark for discrete variables to compute it and then make comparison
         # Then we will compare the KL divergences. This will not change the end result but only the method of calculating variances
 
-
-        rep_mu_x_given_y = (np.repeat(self.mu_x_given_y[:,np.newaxis], card_Z, axis = 1))
-        rep_mu_x_given_z = ((np.repeat(self.mu_y_given_z[:,np.newaxis], card_Y, axis = 1)).transpose(1,0))
-        rep_var_x_given_y = np.repeat(self.var_x_given_y, card_Y, axis=0)
-        rep_var_x_given_y = np.repeat(rep_var_x_given_y[:,np.newaxis], card_Z, axis=1)
-
-        # Calculate discrete variances var_(x|y)
-        discrete_var_x_given_y = np.sum(p_y_given_z * rep_var_x_given_y, axis=0)
-        rep_car_x_given_y = (np.repeat(discrete_var_x_given_y[:,np.newaxis], card_Y, axis = 1)).transpose(1,0)
-
-        # calculate (mu_(x|y) - mu_(x|z))^2 * p(y|z)
-        temp = ((rep_mu_x_given_y -rep_mu_x_given_z)**2)*p_y_given_z
-        temp = np.sum(temp,axis=0)
-
-        #calculate var_(x|z)
-        self.var_x_given_z = discrete_var_x_given_y + temp
-
+        rep_mu_x_given_z = ((np.repeat(self.mu_x_given_z[:,np.newaxis], card_X, axis = 1)).transpose(1,0))
+        rep_x_amps = np.repeat(self.x_amps[:,np.newaxis],card_Z,axis=1)
+        # calculate var_(x|z)
+        x_minus_mux_sq = (rep_x_amps - rep_mu_x_given_z)**2
+        self.var_x_given_z = np.sum((x_minus_mux_sq*self.p_x_given_z),axis=0)
 
 
         # Calculate DKL
 
-
+        rep_var_x_given_y = np.repeat(self.var_x_given_y[:,np.newaxis],card_Z,axis=1)
         rep_var_x_given_z = (np.repeat(self.var_x_given_z[:,np.newaxis], card_Y, axis = 1)).transpose(1,0)
+        rep_mu_x_given_y = np.repeat(self.mu_x_given_y[:,np.newaxis],card_Z,axis=1)
+        rep_mu_x_given_z = ((np.repeat(self.mu_y_given_z[:,np.newaxis], card_Y, axis = 1)).transpose(1,0))
         self.analytic_DKL = lib_cal_DKL_gauss(rep_var_x_given_y, rep_var_x_given_z, rep_mu_x_given_y, rep_mu_x_given_z)
-        
 
+        ################################ Verification of derivation given in report########################################
+        # This experiment is used to compare the var_(x|z) derived vs the tru var_(x|y)
 
-
-
-
-
+        self.var_x_given_z_analytic = lib_cal_derived_var_x_given_z(self.var_x_given_y,self.p_y_given_z, self.mu_x_given_y,self.mu_x_given_z)
