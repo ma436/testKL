@@ -1,8 +1,8 @@
 import numpy as np
 from matplotlib import pyplot as plt
 from mpl_toolkits import mplot3d
-import lib_distributions
 from lib_distributions import *
+from csv_code import *
 
 
 card_X = 200
@@ -18,6 +18,11 @@ a = lib_cal_true_scalar_variance(normal_distributions.x_amps,normal_distribution
 
 DKL_difference = normal_distributions.actualDKL - normal_distributions.analytic_DKL
 
+############################### Write csv ##############################
+
+csv_flag = write_csv_parameters(card_X, card_Y, card_Z, mean_X, var_X, SNRdb)
+
+############################### Plots ##############################
 z = np.arange(1,5)
 y= normal_distributions.y_amps
 X,Y = np.meshgrid(z,y)

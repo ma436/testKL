@@ -29,7 +29,6 @@ def lib_cal_var_x_given_y (x_vec,mu_x_given_y, p_x_given_y):
 def lib_cal_DKL_mat(p_x_given_y,p_x_given_z):
 
     """
-
     :param p_x_given_y:
     :param p_x_given_z:
     :return:
