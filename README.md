@@ -10,3 +10,5 @@ In order to run the Project.
 ---> Get class normal_distributions
 
 class normal_distributions contains attributes "actualDKL", which is true KL divergence (KLD(pmf(x|y)||pmf(x|z))), and "analytic_DKL" which is gaussian approximation of the KL divergence.
+
+Github Testing
